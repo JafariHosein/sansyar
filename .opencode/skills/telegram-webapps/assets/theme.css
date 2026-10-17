@@ -1,0 +1,95 @@
+/*
+ * Telegram Mini App — complete CSS variable reference with browser fallbacks.
+ *
+ * Copy this file into your project and import it. Telegram overwrites these
+ * variables at runtime; the values here are sensible defaults for when the
+ * page loads in a browser during development.
+ *
+ * Usage:
+ *   <link rel="stylesheet" href="./theme.css">
+ *
+ * All variable names match window.Telegram.WebApp.themeParams keys with
+ * underscores replaced by hyphens and prefixed with --tg-theme-.
+ */
+
+/* ── Light mode defaults ─────────────────────────────────────────────────────*/
+:root {
+  /* Core background / text */
+  --tg-theme-bg-color:                    #ffffff;
+  --tg-theme-secondary-bg-color:          #f1f1f1;
+  --tg-theme-text-color:                  #222222;
+  --tg-theme-hint-color:                  #999999;
+  --tg-theme-link-color:                  #2481cc;
+  --tg-theme-destructive-text-color:      #ff3b30;
+
+  /* Buttons */
+  --tg-theme-button-color:                #2481cc;
+  --tg-theme-button-text-color:           #ffffff;
+
+  /* Structural chrome */
+  --tg-theme-header-bg-color:             #ffffff;
+  --tg-theme-bottom-bar-bg-color:         #ffffff;
+
+  /* Accent + section headers */
+  --tg-theme-accent-text-color:           #2481cc;
+  --tg-theme-section-bg-color:            #ffffff;
+  --tg-theme-section-header-text-color:   #6d6d71;
+  --tg-theme-section-separator-color:     #c8c7cc;
+  --tg-theme-subtitle-text-color:         #999999;
+
+  /* Safe area insets — device-level (notch, home bar) */
+  --tg-safe-area-inset-top:               0px;
+  --tg-safe-area-inset-bottom:            0px;
+  --tg-safe-area-inset-left:              0px;
+  --tg-safe-area-inset-right:             0px;
+
+  /* Safe area insets — Telegram's own UI (header bar, bottom nav) */
+  --tg-content-safe-area-inset-top:       0px;
+  --tg-content-safe-area-inset-bottom:    0px;
+  --tg-content-safe-area-inset-left:      0px;
+  --tg-content-safe-area-inset-right:     0px;
+
+  /* Viewport height — updated from JS using tg.viewportStableHeight */
+  --app-height:                           100svh;
+}
+
+/* ── Dark mode defaults (for browser development only) ───────────────────────
+   Inside Telegram, Telegram sets these vars directly — this block is a dev aid.
+   In production the @media block has no effect because Telegram always sets the
+   vars explicitly regardless of system preference.
+*/
+@media (prefers-color-scheme: dark) {
+  :root {
+    --tg-theme-bg-color:                    #212121;
+    --tg-theme-secondary-bg-color:          #0f0f0f;
+    --tg-theme-text-color:                  #ffffff;
+    --tg-theme-hint-color:                  #708499;
+    --tg-theme-link-color:                  #5aa3d7;
+    --tg-theme-destructive-text-color:      #ff453a;
+
+    --tg-theme-button-color:                #5aa3d7;
+    --tg-theme-button-text-color:           #ffffff;
+
+    --tg-theme-header-bg-color:             #212121;
+    --tg-theme-bottom-bar-bg-color:         #1c1c1e;
+
+    --tg-theme-accent-text-color:           #5aa3d7;
+    --tg-theme-section-bg-color:            #212121;
+    --tg-theme-section-header-text-color:   #708499;
+    --tg-theme-section-separator-color:     #38383a;
+    --tg-theme-subtitle-text-color:         #708499;
+  }
+}
+
+/* ── Semantic utility classes ─────────────────────────────────────────────────
+   Use these on elements instead of repeating var() everywhere.
+*/
+.tg-bg           { background-color: var(--tg-theme-bg-color); }
+.tg-bg-secondary { background-color: var(--tg-theme-secondary-bg-color); }
+.tg-text         { color: var(--tg-theme-text-color); }
+.tg-hint         { color: var(--tg-theme-hint-color); }
+.tg-link         { color: var(--tg-theme-link-color); text-decoration: none; }
+.tg-accent       { color: var(--tg-theme-accent-text-color); }
+.tg-subtitle     { color: var(--tg-theme-subtitle-text-color); }
+.tg-destructive  { color: var(--tg-theme-destructive-text-color); }
+.tg-section-header { color: var(--tg-theme-section-header-text-color); }

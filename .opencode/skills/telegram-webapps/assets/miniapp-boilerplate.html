@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <!--
+    viewport-fit=cover is required for safe area insets to work correctly
+    on devices with notches and home indicators.
+  -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+  <!--
+    miniapp-mock.js MUST come first: it installs window.Telegram.WebApp in the
+    browser when tgWebAppData is absent. Copy it from the skill assets folder.
+    It does nothing when running inside Telegram (detects via URL param).
+  -->
+  <script src="./miniapp-mock.js"></script>
+
+  <!--
+    MUST be the second script tag — Telegram injects window.Telegram.WebApp
+    and all CSS variables before the page renders. When running in a browser
+    with the mock active, the real SDK loads but doesn't fully initialize
+    (no Telegram context), so the mock's window.Telegram.WebApp stays in effect.
+  -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <title>Mini App</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /*
+      Use Telegram's CSS variables for theming — they update automatically
+      when the user switches light/dark mode.
+    */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--tg-theme-bg-color, #fff);
+      color: var(--tg-theme-text-color, #000);
+      /*
+        Use viewportStableHeight (not 100vh) — it won't jump during gestures.
+        Updated via JS below.
+      */
+      height: var(--app-height, 100svh);
+      overflow: hidden;
+    }
+
+    /*
+      The main container respects BOTH safe area types:
+        --tg-safe-area-inset-*         → device notch / home bar
+        --tg-content-safe-area-inset-* → Telegram's own header/footer UI
+
+      Always use both — Telegram's UI adds padding on top of the device safe area.
+    */
+    .app {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      padding-top: calc(
+        var(--tg-safe-area-inset-top, 0px) +
+        var(--tg-content-safe-area-inset-top, 0px)
+      );
+      padding-bottom: calc(
+        var(--tg-safe-area-inset-bottom, 0px) +
+        var(--tg-content-safe-area-inset-bottom, 0px)
+      );
+      padding-left: var(--tg-safe-area-inset-left, 0px);
+      padding-right: var(--tg-safe-area-inset-right, 0px);
+    }
+
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 16px;
+    }
+
+    /* Commonly needed theme aliases — add more as needed */
+    .surface      { background: var(--tg-theme-secondary-bg-color, #f0f0f0); }
+    .hint         { color: var(--tg-theme-hint-color, #888); }
+    .link         { color: var(--tg-theme-link-color, #3390ec); }
+    .destructive  { color: var(--tg-theme-destructive-text-color, #e53935); }
+    .btn-primary  {
+      background: var(--tg-theme-button-color, #3390ec);
+      color: var(--tg-theme-button-text-color, #fff);
+      border: none; border-radius: 10px; padding: 14px 20px;
+      font-size: 15px; font-weight: 600; cursor: pointer; width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app">
+    <div class="content" id="content">
+      <!-- your app goes here -->
+      <p id="greeting">Loading...</p>
+    </div>
+  </div>
+
+  <script>
+    if (!window.Telegram?.WebApp) {
+      document.body.innerHTML = '<p style="padding:2rem;font-family:sans-serif">Error: Telegram WebApp SDK not loaded. Open this page inside Telegram, or ensure miniapp-mock.js is served at the same origin.</p>';
+      throw new Error('window.Telegram.WebApp not available');
+    }
+    const tg = window.Telegram.WebApp;
+
+    // ── 1. Signal ready (removes Telegram's loading spinner) ──────────────────
+    tg.ready();
+
+    // ── 2. Expand to full height ───────────────────────────────────────────────
+    tg.expand();
+
+    // ── 3. Stable viewport height ──────────────────────────────────────────────
+    //    Use viewportStableHeight, not viewportHeight — it doesn't change mid-gesture.
+    function updateHeight() {
+      document.documentElement.style.setProperty(
+        '--app-height', `${tg.viewportStableHeight}px`
+      );
+    }
+    updateHeight();
+    tg.onEvent('viewportChanged', ({ isStateStable }) => {
+      if (isStateStable) updateHeight(); // only update when animation settles
+    });
+
+    // ── 4. Theme change handler ────────────────────────────────────────────────
+    //    CSS vars update automatically; add any non-CSS logic here (e.g. canvas).
+    tg.onEvent('themeChanged', () => {
+      // Example: document.querySelector('canvas')?.redraw();
+    });
+
+    // ── 5. User info (display only — validate initData server-side for auth) ──
+    const user = tg.initDataUnsafe?.user;
+    if (user) {
+      document.getElementById('greeting').textContent =
+        `Hello, ${user.first_name}!`;
+    }
+
+    // ── 6. Send initData to your backend for validation ────────────────────────
+    //    See scripts/validate-init-data.js (Node) or validate_init_data.py (Python)
+    async function callApi(path, body) {
+      const res = await fetch(path, {
+        method: 'POST',
+        headers: {
+          'Authorization': `tma ${tg.initData}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    }
+
+    // ── 7. Example: MainButton (Telegram's native bottom CTA) ─────────────────
+    // tg.MainButton.setText('Submit').show().onClick(() => {
+    //   tg.MainButton.showProgress();
+    //   callApi('/api/submit', { foo: 'bar' })
+    //     .then(() => tg.close())
+    //     .catch(err => {
+    //       tg.MainButton.hideProgress();
+    //       tg.showAlert(err.message);
+    //     });
+    // });
+  </script>
+</body>
+</html>

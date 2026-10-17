@@ -1,0 +1,311 @@
+/*
+ * Telegram Mini App — native-feel CSS patterns.
+ *
+ * Copy this file (and theme.css) into your project:
+ *   <link rel="stylesheet" href="./theme.css">
+ *   <link rel="stylesheet" href="./miniapp-native.css">
+ *
+ * These rules make web content feel native on iOS and Android inside Telegram:
+ *   • No scroll bounce / rubber-band on the app shell (only on scrollable lists)
+ *   • No tap highlight flash on buttons and list items
+ *   • No text selection on interactive elements
+ *   • Touch-action tuned per element type
+ *   • Minimum tap target sizes (44 px iOS / 48 px Material)
+ *   • Momentum scroll on lists (-webkit-overflow-scrolling)
+ *   • Smooth color transitions on theme changes
+ */
+
+/* ── Reset / base ─────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  /* Prevent font-size inflation on orientation change (iOS) */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+               "Helvetica Neue", Arial, sans-serif;
+  background: var(--tg-theme-bg-color, #fff);
+  color: var(--tg-theme-text-color, #000);
+  height: var(--app-height, 100svh);
+  overflow: hidden;         /* the body never scrolls; inner containers do */
+
+  /* Prevent rubber-band scroll on the body itself */
+  overscroll-behavior: none;
+
+  /* Smooth theme transitions */
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* ── Interactive elements — tap feel ─────────────────────────────────────── */
+a, button, [role="button"],
+label, select, summary,
+.tg-tappable {
+  /* Remove blue flash on Android tap */
+  -webkit-tap-highlight-color: transparent;
+
+  /* Prevent text selection on interactive elements */
+  -webkit-user-select: none;
+  user-select: none;
+
+  /* Allow vertical scrolling to pass through; block horizontal pan */
+  touch-action: manipulation;
+
+  cursor: pointer;
+}
+
+/* Tappable ripple effect (lightweight, no JS required) */
+.tg-tappable {
+  position: relative;
+  overflow: hidden;
+}
+.tg-tappable:active::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  opacity: 0.08;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* ── Tap target minimums ─────────────────────────────────────────────────── */
+button,
+.tg-btn,
+.tg-list-item {
+  min-height: 44px; /* iOS HIG minimum */
+}
+
+/* Icon-only buttons need explicit size */
+.tg-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* ── Scrollable lists ─────────────────────────────────────────────────────── */
+.tg-scroll {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch; /* momentum scroll on iOS */
+  overscroll-behavior: contain;      /* don't propagate to body */
+}
+
+/* Hide scrollbars on touch devices (they still scroll) */
+@media (hover: none) {
+  .tg-scroll::-webkit-scrollbar { display: none; }
+  .tg-scroll { scrollbar-width: none; }
+}
+
+/* ── Safe area padding helpers ───────────────────────────────────────────── */
+.tg-safe-top {
+  padding-top: calc(
+    var(--tg-safe-area-inset-top, 0px) +
+    var(--tg-content-safe-area-inset-top, 0px)
+  );
+}
+
+.tg-safe-bottom {
+  padding-bottom: calc(
+    var(--tg-safe-area-inset-bottom, 0px) +
+    var(--tg-content-safe-area-inset-bottom, 0px)
+  );
+}
+
+.tg-safe-sides {
+  padding-left:  var(--tg-safe-area-inset-left, 0px);
+  padding-right: var(--tg-safe-area-inset-right, 0px);
+}
+
+/* Full safe-area wrapper — use this on the top-level app container */
+.tg-safe-area {
+  padding-top: calc(
+    var(--tg-safe-area-inset-top, 0px) +
+    var(--tg-content-safe-area-inset-top, 0px)
+  );
+  padding-bottom: calc(
+    var(--tg-safe-area-inset-bottom, 0px) +
+    var(--tg-content-safe-area-inset-bottom, 0px)
+  );
+  padding-left:  var(--tg-safe-area-inset-left, 0px);
+  padding-right: var(--tg-safe-area-inset-right, 0px);
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.tg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  transition: opacity 0.15s ease;
+}
+
+.tg-btn:active  { opacity: 0.7; }
+.tg-btn:disabled { opacity: 0.4; pointer-events: none; }
+
+.tg-btn-primary {
+  background: var(--tg-theme-button-color, #2481cc);
+  color: var(--tg-theme-button-text-color, #fff);
+  width: 100%;
+}
+
+.tg-btn-secondary {
+  background: var(--tg-theme-secondary-bg-color, #f1f1f1);
+  color: var(--tg-theme-text-color, #222);
+  width: 100%;
+}
+
+.tg-btn-destructive {
+  background: transparent;
+  color: var(--tg-theme-destructive-text-color, #ff3b30);
+}
+
+/* ── List cells (Telegram-style) ─────────────────────────────────────────── */
+.tg-list {
+  background: var(--tg-theme-bg-color, #fff);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.tg-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--tg-theme-bg-color, #fff);
+  border-bottom: 1px solid var(--tg-theme-section-separator-color, #e5e5ea);
+  transition: background-color 0.1s ease;
+}
+
+.tg-list-item:last-child { border-bottom: none; }
+.tg-list-item:active { background: var(--tg-theme-secondary-bg-color, #f1f1f1); }
+
+.tg-list-item__icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tg-list-item__body  { flex: 1; min-width: 0; }
+.tg-list-item__title {
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--tg-theme-text-color, #222);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tg-list-item__sub {
+  font-size: 13px;
+  color: var(--tg-theme-subtitle-text-color, #999);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tg-list-item__chevron {
+  color: var(--tg-theme-hint-color, #999);
+  flex-shrink: 0;
+}
+
+/* ── Section headers ─────────────────────────────────────────────────────── */
+.tg-section-header {
+  font-size: 13px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--tg-theme-section-header-text-color, #6d6d71);
+  padding: 20px 16px 6px;
+}
+
+/* ── Form inputs ─────────────────────────────────────────────────────────── */
+.tg-input {
+  display: block;
+  width: 100%;
+  background: var(--tg-theme-bg-color, #fff);
+  color: var(--tg-theme-text-color, #222);
+  border: 1px solid var(--tg-theme-section-separator-color, #e5e5ea);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 15px;
+  line-height: 1.4;
+  outline: none;
+  transition: border-color 0.15s ease;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.tg-input:focus {
+  border-color: var(--tg-theme-button-color, #2481cc);
+}
+
+.tg-input::placeholder {
+  color: var(--tg-theme-hint-color, #999);
+}
+
+/* ── Skeleton loader shimmer ─────────────────────────────────────────────── */
+@keyframes tg-shimmer {
+  0%   { background-position: -300px 0; }
+  100% { background-position:  300px 0; }
+}
+
+.tg-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--tg-theme-secondary-bg-color, #f1f1f1) 25%,
+    var(--tg-theme-bg-color,            #ffffff) 50%,
+    var(--tg-theme-secondary-bg-color, #f1f1f1) 75%
+  );
+  background-size: 600px 100%;
+  animation: tg-shimmer 1.2s infinite linear;
+  border-radius: 6px;
+}
+
+/* ── Page transition ─────────────────────────────────────────────────────── */
+.tg-page {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--tg-theme-bg-color, #fff);
+}
+
+/* Slide in from right (push) */
+@keyframes tg-slide-in {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+/* Slide out to right (pop) */
+@keyframes tg-slide-out {
+  from { transform: translateX(0); }
+  to   { transform: translateX(100%); }
+}
+
+.tg-page--enter { animation: tg-slide-in  0.28s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.tg-page--exit  { animation: tg-slide-out 0.28s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+
+/* ── Typography ──────────────────────────────────────────────────────────── */
+.tg-title    { font-size: 17px; font-weight: 600; line-height: 1.3; }
+.tg-body     { font-size: 15px; font-weight: 400; line-height: 1.5; }
+.tg-callout  { font-size: 15px; font-weight: 500; line-height: 1.4; }
+.tg-caption  { font-size: 13px; font-weight: 400; line-height: 1.4; }
+.tg-footnote { font-size: 11px; font-weight: 400; line-height: 1.3; letter-spacing: 0.1px; }

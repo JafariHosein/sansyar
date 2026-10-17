@@ -1,0 +1,389 @@
+// سانس‌یار — data model (PROMPT.md §4).
+//
+// Conventions:
+//   - Every datetime is stored in UTC. Prisma maps `DateTime` to MySQL
+//     `DATETIME(3)` by default, which is exactly what the spec asks for; the
+//     UI converts to Asia/Tehran for display only (src/lib/jalali.ts).
+//   - Identity is the Eitaa user id. Eitaa ids carry up to 52 significant bits,
+//     so `eitaaId` is a String, never a number.
+//   - There is no OTP code, no SMS panel and no phone-based login anywhere in
+//     this model. A **contact number** is asked once, on the player's first run,
+//     stored on `User.phone` and shown to the manager only (PROMPT.md §5.7 —
+//     revised by the owner: the manager needs a way to follow up with a player).
+//     It is never an identity, never verified by SMS and never a login. The same
+//     first run also asks for the player's **real name** pair
+//     (`User.firstName`/`lastName`), kept apart from the Eitaa display name.
+//   - **Membership is approved once, by the manager** (the owner's newest
+//     instruction): a fresh account starts as `PENDING` and can use nothing
+//     until the manager approves the *person* (`User.membershipStatus`). After
+//     that, a registration is simply a seat: it lands `CONFIRMED` directly, or
+//     `WAITLIST` when the hall is full. Occupancy is CONFIRMED only, and a freed
+//     seat promotes the first waiter **straight into `CONFIRMED`** — the same
+//     person is never gated twice.
+//   - "Display status" of a session (upcoming / open / full / closed / running /
+//     finished) is derived from times + capacity in code — never stored.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// ---------------------------------------------------------------------------
+// People
+// ---------------------------------------------------------------------------
+
+/// The **account-level** approval — the one gate between a person and the app.
+enum MembershipStatus {
+  /// A fresh account. It can see nothing but the waiting screen; `registerSeat`
+  /// refuses it server-side.
+  PENDING
+  /// The manager's yes: the person can register like anyone else.
+  APPROVED
+  /// The manager's no. Not final — a rejected account can be approved later from
+  /// `/admin`, and until then it sees the rejection screen.
+  REJECTED
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id        String   @id @default(cuid())
+  /// Eitaa user id (numeric string, up to 52 bits). The only identity we have.
+  eitaaId   String   @unique
+  /// The **display name**: what Eitaa reports (or what the player typed as
+  /// «تغییر نام»), and what every roster shows. The real name lives in
+  /// `firstName`/`lastName` below — the two are deliberately separate.
+  name      String
+  role      Role     @default(USER)
+  /// The manager's decision on the **account** (see `MembershipStatus`). A fresh
+  /// account is `PENDING`; a login never changes this either way, and an account
+  /// that becomes an admin is approved on sight.
+  membershipStatus    MembershipStatus @default(PENDING)
+  /// When the manager last decided on the account — set on both approve and
+  /// reject, overwritten when a rejected account is later approved. Null while
+  /// the request is untouched.
+  membershipDecidedAt DateTime?
+  /// Contact number. Collected **once** — the first sheet the app shows after
+  /// login — and immutable afterwards, so there is no «تغییر شماره» anywhere.
+  /// Normalized to `09XXXXXXXXX` (11 Latin digits) by `src/lib/phone.ts`; null
+  /// until the player answers. Admin-visible only — never rendered to other
+  /// players, never used to authenticate.
+  phone     String?  @db.VarChar(15)
+  /// The player's **real** first name: asked once, in the same first-run sheet
+  /// as the number, and immutable afterwards (a change is the manager's call).
+  /// `name` above is a nickname; the manager needs the name on the ID.
+  firstName String?  @db.VarChar(30)
+  /// The real last name — the second half of the pair above.
+  lastName  String?  @db.VarChar(40)
+  /// The account's **balance** (تومان): money the hall holds for the player. A
+  /// paid seat that is given up lands here instead of leaving as cash, it is
+  /// spent automatically on the next seat, and the manager may adjust it by
+  /// hand. Never negative; every movement writes one `BalanceEntry`, so the
+  /// ledger and the column can never tell two different stories.
+  balance   Int      @default(0)
+  createdAt DateTime @default(now())
+
+  registrations      Registration[]
+  penalties          Penalty[]      @relation("PenaltyUser")
+  issuedPenalties    Penalty[]      @relation("PenaltyIssuedBy")
+  balanceEntries     BalanceEntry[] @relation("BalanceEntryUser")
+  balanceAdjustments BalanceEntry[] @relation("BalanceEntryAdmin")
+
+  @@index([role])
+}
+
+// ---------------------------------------------------------------------------
+// Places
+// ---------------------------------------------------------------------------
+
+model Venue {
+  id          String   @id @default(cuid())
+  name        String
+  address     String   @db.VarChar(255)
+  description String?  @db.Text
+  mapUrl      String?  @db.VarChar(500)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  sessions Session[]
+
+  @@index([isActive])
+}
+
+// ---------------------------------------------------------------------------
+// Sessions (سانس) — the slot a hall manager publishes
+// ---------------------------------------------------------------------------
+
+enum SessionStatus {
+  DRAFT
+  PUBLISHED
+  CANCELED
+}
+
+enum PaymentMode {
+  /// Pay on the (mock) gateway while registering.
+  AT_REGISTRATION
+  /// Pay the manager in person; the admin later flips the payment status.
+  IN_PERSON
+}
+
+model Session {
+  id              String  @id @default(cuid())
+  title           String
+  venueId         String
+  venue           Venue   @relation(fields: [venueId], references: [id], onDelete: Restrict)
+  /// Shown instead of the venue address when set (e.g. "درب شماره‌ی ۳").
+  addressOverride String? @db.VarChar(255)
+  /// The manager's map link for this slot (a Neshan share/search URL). The venue
+  /// carries its own link as a fallback; when both are empty the session page
+  /// builds a Neshan search from the address, so «مسیریابی» is never dead.
+  mapUrl          String? @db.VarChar(500)
+  description     String? @db.Text
+
+  startsAt             DateTime
+  endsAt               DateTime
+  registrationOpensAt  DateTime
+  registrationClosesAt DateTime
+
+  capacity    Int
+  priceToman  Int
+  paymentMode PaymentMode   @default(IN_PERSON)
+  status      SessionStatus @default(DRAFT)
+
+  // Per-session overrides of the cancel rules (PROMPT.md §5.4).
+  // null = inherit the single Setting row. The admin form exposes these as
+  // "override" switches; empty means inherit.
+  freeCancelHours             Int?
+  lateCancelEnabled           Boolean?
+  lateCancelPenaltyDays       Int?
+  lateCancelFirstWarning      Boolean?
+  lateCancelWarningWindowDays Int?
+  noShowEnabled               Boolean?
+  noShowPenaltyDays           Int?
+  lateStrikesEnabled          Boolean?
+  lateThresholdMinutes        Int?
+  lateStrikeCount             Int?
+  lateStrikeWindowDays        Int?
+  lateStrikePenaltyDays       Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  registrations  Registration[]
+  penalties      Penalty[]
+  balanceEntries BalanceEntry[]
+
+  @@index([startsAt, registrationOpensAt])
+  @@index([status, startsAt])
+}
+
+// ---------------------------------------------------------------------------
+// Registrations
+// ---------------------------------------------------------------------------
+
+enum RegistrationStatus {
+  /// A seat. Only an *approved member* can produce one (the membership gate).
+  CONFIRMED
+  /// The line behind a full سانس. A waitlisted row holds no seat and owes
+  /// nothing; when a seat frees, the first row in line lands straight in
+  /// `CONFIRMED`.
+  WAITLIST
+  CANCELED
+}
+
+enum CancelType {
+  /// Canceled early enough (inside the free window).
+  FREE
+  /// Canceled late — feeds the penalty engine.
+  LATE
+  /// Removed by an admin.
+  ADMIN
+  /// Registration window closed without the player showing up / confirming.
+  WINDOW_CLOSED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID_ONLINE
+  PAID_IN_PERSON
+  WAIVED
+  /// The seat was settled **entirely from the account's balance** at registration
+  /// time (`paidFromBalance = amountToman`). Deliberately not an option in the
+  /// manager's payment select: this state is what the balance engine wrote, and
+  /// re-marking it by hand would double-count money that already moved.
+  PAID_BALANCE
+}
+
+enum AttendanceStatus {
+  PENDING
+  PRESENT
+  LATE
+  ABSENT
+}
+
+model Registration {
+  id        String  @id @default(cuid())
+  sessionId String
+  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Deliberately **no default**: a forgotten `status` cannot quietly invent a
+  /// seat, because every write must name one (`registerSeat` decides CONFIRMED vs
+  /// WAITLIST from the occupancy). The hard door is the membership gate on the
+  /// account, not the seat.
+  status RegistrationStatus
+
+  createdAt  DateTime    @default(now())
+  canceledAt DateTime?
+  cancelType CancelType?
+
+  /// Set when a freed seat promoted this row out of the waitlist **straight
+  /// into `CONFIRMED`** (with the same transaction's promotion). Cleared on
+  /// every fresh registration/revival, so the screen can say «از لیست انتظار
+  /// دراومدی» about *this* promotion only.
+  promotedAt DateTime?
+
+  paymentStatus PaymentStatus @default(UNPAID)
+  paidAt        DateTime?
+
+  /// What **this seat** costs, snapshotted from `Session.priceToman` the moment
+  /// the seat is taken (and again on every revival). A later price edit never
+  /// re-prices a seat that was already registered: the money math — what the
+  /// seat still owes, what a cancel refunds — reads this column, never the
+  /// session's current price.
+  amountToman Int
+  /// The part of `amountToman` that came off the account's **balance** when the
+  /// seat was taken. `UNPAID` with a positive value here means "the rest is
+  /// still owed"; a fully covered seat is `PAID_BALANCE` and owes nothing.
+  paidFromBalance Int @default(0)
+
+  // Attendance is recorded per registration; waitlist order is createdAt.
+  attendance  AttendanceStatus @default(PENDING)
+  lateMinutes Int?
+  markedAt    DateTime?
+
+  balanceEntries BalanceEntry[]
+
+  /// One registration per user per session — rely on this and catch P2002.
+  @@unique([sessionId, userId])
+  @@index([userId, createdAt])
+  @@index([sessionId, status, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// The balance ledger — one row per movement of `User.balance`
+// ---------------------------------------------------------------------------
+
+enum BalanceEntryType {
+  /// Money spent on a seat: a fresh registration or a waitlist promotion took
+  /// part of the account's balance (negative amount).
+  REGISTRATION_DEDUCT
+  /// A seat that carried money was given up — by the player or by the manager —
+  /// and the money landed back on the balance (positive amount).
+  CANCEL_REFUND
+  /// The manager moved the balance by hand (either direction).
+  ADMIN_ADJUST
+}
+
+model BalanceEntry {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation("BalanceEntryUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Signed: positive credits the account, negative takes from it.
+  amount Int
+  /// The balance right after this movement — the ledger explains itself without
+  /// replaying history.
+  balanceAfter Int
+  type         BalanceEntryType
+  /// The manager's own words for an adjustment, or the engine's short note.
+  note         String?          @db.VarChar(255)
+
+  /// The seat that moved the money, when one did.
+  registrationId String?
+  registration   Registration? @relation(fields: [registrationId], references: [id], onDelete: SetNull)
+  sessionId      String?
+  session        Session?      @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  /// Set for `ADMIN_ADJUST` rows, so the audit trail names the manager.
+  byAdminId String?
+  byAdmin   User?   @relation("BalanceEntryAdmin", fields: [byAdminId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Penalties / bans — one row per triggering event (PROMPT.md §5.6)
+// ---------------------------------------------------------------------------
+
+enum PenaltyType {
+  LATE_CANCEL
+  NO_SHOW
+  LATE_STRIKES
+  MANUAL
+}
+
+model Penalty {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation("PenaltyUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  type   PenaltyType
+  /// 0 = warning only (recorded in history, no ban).
+  days   Int
+  reason String      @db.VarChar(255)
+
+  startsAt DateTime @default(now())
+  /// `days === 0` → endsAt equals startsAt (a warning has no ban window).
+  endsAt   DateTime
+
+  /// The session that triggered it (null for manual bans).
+  sessionId String?
+  session   Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  /// Set for MANUAL penalties so the admin trail is visible.
+  issuedByAdminId String?
+  issuedByAdmin   User?   @relation("PenaltyIssuedBy", fields: [issuedByAdminId], references: [id], onDelete: SetNull)
+
+  /// Set when an admin lifts the ban early.
+  waivedAt  DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, endsAt])
+  @@index([sessionId])
+}
+
+// ---------------------------------------------------------------------------
+// Settings — a single editable row (id = 1) holding the default rules
+// ---------------------------------------------------------------------------
+
+model Setting {
+  id Int @id @default(1)
+
+  // Cancel policy (PROMPT.md §5.4). Every value is editable from /admin/settings
+  // and each session may override it.
+  freeCancelHours             Int     @default(12)
+  lateCancelEnabled           Boolean @default(true)
+  lateCancelPenaltyDays       Int     @default(3)
+  lateCancelFirstWarning      Boolean @default(true)
+  lateCancelWarningWindowDays Int     @default(14)
+  noShowEnabled               Boolean @default(true)
+  noShowPenaltyDays           Int     @default(7)
+  lateStrikesEnabled          Boolean @default(true)
+  lateThresholdMinutes        Int     @default(15)
+  lateStrikeCount             Int     @default(3)
+  lateStrikeWindowDays        Int     @default(30)
+  lateStrikePenaltyDays       Int     @default(7)
+
+  updatedAt DateTime @updatedAt
+}

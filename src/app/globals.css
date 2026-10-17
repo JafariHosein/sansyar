@@ -1,0 +1,347 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/*
+ * Sansyar design tokens — the live implementation of `DESIGN_SYSTEM.md`.
+ *
+ * Two layers live here:
+ *  1. `:root` — raw brand values (hex, from the locked palette) + app metrics.
+ *  2. `@theme inline` — maps those values onto Tailwind's namespaces so both
+ *     shadcn/ui components (`bg-primary`, `text-muted-foreground`) and the
+ *     brand utilities (`bg-brand`, `border-line`, `text-h1`) resolve.
+ *
+ * The palette is contrast-verified by `scripts/check-contrast.mjs`. Changing a
+ * hex here without re-running that script is a bug, not a preference.
+ *
+ * Dark mode is deliberately NOT shipped: the Eitaa mini app keeps a fixed light
+ * brand chrome. The `.dark` variant below exists only so the `dark:` utilities
+ * that ship inside shadcn components stay inert (without it, Tailwind's default
+ * `dark:` would follow `prefers-color-scheme` and break the fixed chrome).
+ */
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* ---- surfaces ---- */
+  --page: #f7f8f5; /* «سفید سالن» — page background */
+  --surface: #ffffff; /* raised: cards, sheets, tab bar, header */
+  --sunken: #edefe9; /* «سایهٔ سالن» — rails, meter tracks */
+  --line: #dde2d7; /* «خط زمین» — decorative hairline only */
+  --line-strong: #75817a; /* «خط دور» — perceivable edges / affordances */
+
+  /* ---- text ---- */
+  --ink: #16201b; /* «مرکب» — body + headings */
+  --ink-muted: #56635c; /* supporting copy */
+
+  /* ---- brand accent (yellow) ---- */
+  --brand: #f5b301; /* primary fill — always with ink text on top */
+  --brand-hover: #e0a100;
+  --brand-ink: #8a6100; /* amber as text / focus ring */
+  --brand-mark: #b57f00; /* bare marks on white (≥3:1) */
+  --brand-soft: #fff3d1; /* info banners, selected rows */
+
+  /* ---- affirmative / space (green) ---- */
+  --green: #157f4a;
+  --green-strong: #0f6339; /* success text on tint */
+  --green-soft: #e4f4ea;
+
+  /* ---- danger (red) ---- */
+  --red: #b3261e;
+  --red-soft: #fcebe9;
+
+  /* ---- app metrics (Eitaa / WebView) ---- */
+  --app-vh: 100dvh;
+  --header-height: 56px;
+  --tab-bar-height: 56px;
+  /* `max()` so the messenger-reported inset (phase 2 bridge) can only ever
+     increase the reserved space, never fight the browser's own safe area. */
+  --safe-area-bottom: max(env(safe-area-inset-bottom, 0px), var(--tg-safe-area-inset-bottom, 0px));
+  --safe-area-top: max(env(safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px));
+  --content-max: 720px;
+
+  /* ---- elevation ---- */
+  --elevation-card: 0 1px 2px rgb(22 32 27 / 0.06);
+  --elevation-pop: 0 8px 24px -8px rgb(22 32 27 / 0.18);
+  --elevation-bar: 0 -1px 0 var(--line);
+
+  /* ---- shadcn/ui contract ---- */
+  --radius: 10px;
+  --background: var(--page);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--brand);
+  --primary-foreground: var(--ink); /* ink on yellow = 9.0:1; white is banned */
+  --secondary: var(--sunken);
+  --secondary-foreground: var(--ink);
+  --muted: var(--sunken);
+  --muted-foreground: var(--ink-muted);
+  --accent: var(--brand-soft);
+  --accent-foreground: var(--ink);
+  --destructive: var(--red);
+  --destructive-foreground: #ffffff;
+  --border: var(--line); /* quiet structural hairline */
+  --input: var(--line-strong); /* control outline must be perceivable */
+  --ring: var(--brand-ink); /* focus ring */
+  --chart-1: var(--brand);
+  --chart-2: var(--green);
+  --chart-3: var(--brand-mark);
+  --chart-4: var(--green-strong);
+  --chart-5: var(--red);
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--brand);
+  --sidebar-primary-foreground: var(--ink);
+  --sidebar-accent: var(--brand-soft);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--brand-ink);
+
+  /* Self-hosted via `@fontsource-variable/estedad` (imported in the root
+     layout). Estedad covers Arabic + Latin, so venue names and Persian digits
+     share one voice. Never load a font from a CDN. */
+  --font-estedad: "Estedad Variable", "Vazirmatn", "Segoe UI", Tahoma, sans-serif;
+
+  /* ---- type scale (see DESIGN_SYSTEM.md §4) ---- */
+  --fs-display: clamp(1.75rem, 1.35rem + 1.7vw, 2.25rem);
+  --fs-h1: clamp(1.375rem, 1.2rem + 0.8vw, 1.625rem);
+  --fs-h2: 1.25rem;
+  --fs-h3: 1.0625rem;
+  --fs-body-lg: 1.0625rem;
+  --fs-body: 1rem;
+  --fs-sm: 0.875rem;
+  --fs-caption: 0.8125rem;
+  --fs-button: 0.9375rem;
+  --fs-numeral: 1.0625rem;
+}
+
+@theme inline {
+  /* fonts — one family, hierarchy by weight/size */
+  --font-sans: var(--font-estedad);
+  --font-heading: var(--font-estedad);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* brand utilities: bg-brand, text-ink, border-line, ring-brand-ink, … */
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-mark: var(--brand-mark);
+  --color-brand-soft: var(--brand-soft);
+  --color-success: var(--green);
+  --color-success-strong: var(--green-strong);
+  --color-success-soft: var(--green-soft);
+  --color-danger: var(--red);
+  --color-danger-soft: var(--red-soft);
+
+  /* shadcn/ui contract */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* radii — derived from --radius (10px): sm 6 · md 8 · lg 10 · xl 14 */
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* elevation — hue-tinted (green-ink), never neutral black */
+  --shadow-2xs: 0 1px 2px rgb(22 32 27 / 0.04);
+  --shadow-xs: 0 1px 2px rgb(22 32 27 / 0.05);
+  --shadow-sm: var(--elevation-card);
+  --shadow-md: 0 4px 12px -4px rgb(22 32 27 / 0.12);
+  --shadow-lg: var(--elevation-pop);
+  --shadow-xl: 0 16px 40px -12px rgb(22 32 27 / 0.22);
+  --shadow-card: var(--elevation-card);
+  --shadow-pop: var(--elevation-pop);
+  --shadow-bar: var(--elevation-bar);
+
+  /* type scale (see DESIGN_SYSTEM.md §4) */
+  --text-display: var(--fs-display);
+  --text-display--line-height: 1.25;
+  --text-display--font-weight: 800;
+  --text-h1: var(--fs-h1);
+  --text-h1--line-height: 1.35;
+  --text-h1--font-weight: 700;
+  --text-h2: var(--fs-h2);
+  --text-h2--line-height: 1.4;
+  --text-h2--font-weight: 700;
+  --text-h3: var(--fs-h3);
+  --text-h3--line-height: 1.45;
+  --text-h3--font-weight: 650;
+  --text-body-lg: var(--fs-body-lg);
+  --text-body-lg--line-height: 1.6;
+  --text-body: var(--fs-body);
+  --text-body--line-height: 1.6;
+  --text-sm: var(--fs-sm);
+  --text-sm--line-height: 1.55;
+  --text-caption: var(--fs-caption);
+  --text-caption--line-height: 1.5;
+  --text-caption--font-weight: 500;
+  --text-button: var(--fs-button);
+  --text-button--line-height: 1.2;
+  --text-numeral: var(--fs-numeral);
+  --text-numeral--line-height: 1.2;
+  --text-numeral--font-weight: 700;
+
+  /* Persian needs more leading than Latin at the small end */
+  --text-base--line-height: 1.6;
+  --text-xs--line-height: 1.5;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply font-sans;
+    -webkit-text-size-adjust: 100%;
+    /* Eitaa/webview: never bounce the whole document */
+    overscroll-behavior-y: none;
+    height: 100%;
+    /* RTL puts the desktop scrollbar on the *left*, and the centred column
+       (`app-column` → `margin-inline: auto`) then looks off-centre by exactly its
+       width (measured at 852px: 59px on the left vs 74px on the right). Reserving
+       the gutter on both edges keeps the column optically centred; on the phone
+       (overlay scrollbars) this is a no-op. */
+    scrollbar-gutter: stable both-edges;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    min-height: 100%;
+    /* Native-app feel inside the messenger WebView */
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+    touch-action: manipulation;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Chrome (header/tab bar) is not selectable text — content is. */
+  header,
+  nav,
+  [data-chrome] {
+    user-select: none;
+  }
+
+  /* Baseline focus ring for plain elements; shadcn components opt out with
+     `outline-none` + their own ring utility and therefore win. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--brand-soft);
+    color: var(--ink);
+  }
+
+  /* Reduced motion collapses every transition and the bench-rail stagger. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * App utilities
+ * ------------------------------------------------------------------------- */
+
+/* ---------------------------------------------------------------------------
+ * Numerals read with the font's **proportional** figures — never tabular.
+ *
+ * Estedad's tabular set pads every digit to the widest glyph (12.94px at
+ * 17px/700, against 5.73px for «۱»), so `font-variant-numeric: tabular-nums`
+ * made every number read spaced-out: the clock «۲۱:۳۰» measured 56.17px against
+ * 40.53px proportional, a Jalali date 129.38px against 91.23px (measured in the
+ * built app, §۵ phase). CSS `letter-spacing` cannot buy that space back — the
+ * engine refuses to track Arabic-script digit runs — so the figure set is the
+ * only lever there is, and it is a phase-gate typography rule, not a preference.
+ *
+ * Nothing in the app is a numeric column, and the one label that ticks
+ * (`LiveCountdown`) is a sentence whose digits never change column position.
+ * ------------------------------------------------------------------------- */
+
+/* The utility the rule above bans, neutralized at the source. Tailwind v4 scans
+ * plain text, and this file's own explanation names the class — enough for the
+ * compiler to emit it, unused, into the bundle. Should someone ever type it in a
+ * component, this unlayered rule (layered utilities lose to unlayered rules)
+ * keeps the figures proportional instead of silently spacing them out. */
+.tabular-nums {
+  font-variant-numeric: normal;
+}
+
+/** The standard content column: full-bleed gutters on phones, capped on desktop. */
+@utility app-column {
+  width: 100%;
+  max-width: var(--content-max);
+  margin-inline: auto;
+  padding-inline: calc(var(--spacing) * 4);
+
+  /* DESIGN_SYSTEM.md §5: 16px gutters, 20px from 420px up. */
+  @media (width >= 420px) {
+    padding-inline: calc(var(--spacing) * 5);
+  }
+}
+
+/** Scroll padding so content clears header + fixed tab bar. */
+@utility pb-tabbar {
+  padding-bottom: calc(var(--tab-bar-height) + var(--safe-area-bottom) + var(--spacing) * 4);
+}
+
+/** Top padding that respects the Eitaa status-bar inset. */
+@utility pt-safe {
+  padding-top: calc(var(--safe-area-top) + var(--spacing) * 2);
+}
+
+/** Full-height shell that stays stable while the WebView viewport resizes. */
+@utility app-viewport {
+  min-height: var(--app-vh);
+}

@@ -1,0 +1,25 @@
+Skills bundled in this project — sources and licenses
+====================================================
+
+frontend-design   © Anthropic — github.com/anthropics/skills (skills/frontend-design)
+                  License: Apache-2.0 (see frontend-design/LICENSE.txt)
+
+shadcn            © shadcn/ui — github.com/shadcn-ui/ui (skills/shadcn)
+                  License: MIT
+
+ui-ux-kit         © Muhammad Arham Athar — github.com/arham777/ui-ux-kit
+                  License: MIT (see ui-ux-kit/LICENSE)
+
+persian-rtl-ui    Custom skill written for this project (Sansyar)
+
+nextjs-fullstack  Custom skill written for this project (Sansyar)
+
+eitaa-miniapp     Custom skill written for this project (Sansyar), distilled from the official
+                  Eitaa mini-app documentation — developer.eitaa.com/docs,
+                  github.com/eitaa/Documentation and the developer rules at
+                  eitaa.com/pg/terms/mini-apps (referenced as technical sources; no code copied).
+
+telegram-webapps  © Yaniv Golan — github.com/yaniv-golan/telegram-webapps-skill
+                  License: MIT (see telegram-webapps/LICENSE.txt).
+                  Included because Eitaa mini apps are a near-clone of Telegram Mini Apps;
+                  a short adaptation note was added at the top of SKILL.md.
