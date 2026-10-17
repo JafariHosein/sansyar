@@ -66,6 +66,7 @@ npx.cmd tsx scripts/eitaa-sign-initdata.ts --id 200000001 --name "کاربر آ�
 npm.cmd run build          # بیلد production — گیت اصلی هر فاز
 npm.cmd run typecheck
 npm.cmd run lint
+npm.cmd run check:dburl    # ساخت DATABASE_URL از MYSQL_* (مسیر دیپلوی Render)
 npm.cmd run check:contrast # ۲۸ جفت رنگ، AA
 npm.cmd run check:dates    # تاریخ شمسی/Asia-Tehran/فرمت اعداد
 npm.cmd run check:env      # پیدا کردن $NAME فرارنکرده در .env
@@ -82,6 +83,12 @@ npm.cmd run check:balance  # موتور موجودی: کسر خودکار، بر
 - لینک اشتراک سانس فقط از `src/lib/eitaa-link.ts` ساخته می‌شود؛ شکل `?startapp=` مطابق مستندات خود ایتا («ارسال داده به برنامک») است و زنده تأیید شد. هر لینک سانس `&btn=ثبت‌نام` هم دارد: کلاینت **اندروید** با همین پارامتر زیر پیام یک دکمه می‌سازد (برچسب خام فارسی، نه درصدی — روی دستگاه تست شد)؛ وب و دسکتاپ دکمه‌ای نمی‌سازند و همان لینک تپ‌کردنی است.
 - پیام‌های برنامک ← بازیکن (`src/lib/eitaa-notify.ts`) از `POST /api/app/sendMessage` با توکن سرور و `chat_id = eitaaId` می‌روند؛ فقط رویدادهای مهم (تأیید/رد عضویت، ارتقا از لیست انتظار، جریمه)، مصرف از اعتبار پیام روزانه، و در dev فقط لاگ می‌شوند.
 - ثبت در ایتایار: آدرس مقصد HTTPS و **بدون ریدایرکت**؛ «عنوان دکمه / آدرس دکمه / عکس شروع / پیام شروع» کارتِ خودِ برنامه را می‌سازند که **داخل گفتگوی برنامه** دیده می‌شود (یک‌بار برای همیشه، نه per-message). زیر پیام‌های گروه/کانال، **اندروید** برای لینک‌های دارای `&btn=` دکمه می‌سازد و وب/دسکتاپ فقط لینک `?startapp=` را دارند — ورودی همه، همان لینک است. جزئیات کامل در اسکیل `eitaa-miniapp` و `PROMPT.md` §۱۳.
+
+## دیپلوی روی Render (برنچ `render-deploy`)
+
+کارِ دیپلوی روی برنچ `render-deploy` می‌ماند و به `main` مرج نشده. با روش **Blueprint**، فایل `render.yaml` دو سرویس می‌سازد: وب‌سرویس Next.js روی `sansyar.onrender.com` و **سرویس خصوصی MySQL 8.4 روی دیسک ماندگار** (منطقه‌ی frankfurt). راهنمای گام‌به‌گام، فهرست رازها، هزینه‌ی ماهانه و عیب‌یابی در `DEPLOY-RENDER.md` است.
+
+دو نکته‌ی فنی: برنامه وقتی `DATABASE_URL` نباشد، آن را از پنج متغیر `MYSQL_*` می‌سازد (`src/lib/database-url.ts` — چون Render مقدار پنهان را داخل رشته جای‌گذاری نمی‌کند) و `npm.cmd run check:dburl` همین را چک می‌کند؛ مایگریشن‌ها هم پیش از هر دیپلوی با `preDeployCommand` (`prisma migrate deploy`) اجرا می‌شوند.
 
 ## وضعیت فازها
 

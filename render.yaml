@@ -1,0 +1,91 @@
+# render.yaml — دیپلوی سانس‌یار روی Render با روش «Blueprint».
+#
+# دو سرویس ساخته می‌شود:
+#   • sansyar-mysql — سرویس خصوصی MySQL 8.4 روی دیسک ماندگار؛ هیچ آدرس عمومی
+#     ندارد و فقط سرویس‌های همین Workspace او را روی شبکه‌ی خصوصی می‌بینند.
+#   • sansyar       — وب‌سرویس Next.js با HTTPS عمومی؛ همان آدرسی که به‌عنوان
+#     «آدرس برنامک» در پنل ایتایار ثبت می‌شود.
+#
+# راهنمای گام‌به‌گام، فهرست رازها و هزینه‌ها: DEPLOY-RENDER.md
+# مقدارهای راز اینجا نیستند: هر متغیری که `sync: false` دارد، هنگام ساخت
+# Blueprint یک بار در داشبورد پرسیده می‌شود.
+
+services:
+  # ── پایگاه داده: MySQL 8.4 روی دیسک ماندگار ─────────────────────────────────
+  - type: pserv
+    name: sansyar-mysql
+    runtime: docker
+    dockerfilePath: docker/mysql/Dockerfile
+    branch: render-deploy
+    region: frankfurt
+    plan: 0.5c-512mb
+    # با هر پوش ری‌استارت نشود: ایمیج دیتابیس فقط وقتی دوباره ساخته می‌شود که
+    # خودِ Dockerfile عوض شود (یا از داشبورد دستی Deploy بزنی).
+    autoDeployTrigger: "off"
+    envVars:
+      - key: MYSQL_DATABASE
+        value: sansyar
+      - key: MYSQL_USER
+        value: sansyar
+      - key: MYSQL_PASSWORD
+        generateValue: true
+      - key: MYSQL_ROOT_PASSWORD
+        generateValue: true
+    disk:
+      name: sansyar-mysql-data
+      mountPath: /var/lib/mysql
+      sizeGB: 10
+
+  # ── وب‌سرویس Next.js ────────────────────────────────────────────────────────
+  - type: web
+    name: sansyar
+    runtime: node
+    branch: render-deploy
+    region: frankfurt
+    plan: 0.5c-512mb
+    buildCommand: npm ci && npm run db:generate && npm run build
+    # مایگریشن‌ها پیش از هر دیپلوی — روی اینستنس جداگانه ولی داخل همان شبکه‌ی
+    # خصوصی، پس MySQL را می‌بیند.
+    preDeployCommand: npm run db:deploy
+    startCommand: npm start
+    healthCheckPath: /
+    autoDeployTrigger: commit
+    envVars:
+      # اتصال دیتابیس: Render نمی‌تواند یک مقدار generateValue را داخل رشته‌ی
+      # دیگری جای‌گذاری کند، پس پنج تکه‌ی MYSQL_* را می‌دهد و برنامه خودش
+      # DATABASE_URL را می‌سازد (src/lib/database-url.ts).
+      - key: MYSQL_HOST
+        fromService:
+          type: pserv
+          name: sansyar-mysql
+          property: host
+      - key: MYSQL_PORT
+        value: "3306"
+      - key: MYSQL_DATABASE
+        fromService:
+          type: pserv
+          name: sansyar-mysql
+          envVarKey: MYSQL_DATABASE
+      - key: MYSQL_USER
+        fromService:
+          type: pserv
+          name: sansyar-mysql
+          envVarKey: MYSQL_USER
+      - key: MYSQL_PASSWORD
+        fromService:
+          type: pserv
+          name: sansyar-mysql
+          envVarKey: MYSQL_PASSWORD
+      # راز امضای کوکی نشست — Render خودش می‌سازد.
+      - key: SESSION_SECRET
+        generateValue: true
+      # این چهار مقدار را هنگام ساخت Blueprint وارد کن (همان مقدارهای .env؛
+      # هشدار `$` در DEPLOY-RENDER.md):
+      - key: ADMIN_EITAA_ID
+        sync: false
+      - key: EITAA_BOT_TOKEN
+        sync: false
+      - key: EITAA_APP_USERNAME
+        sync: false
+      - key: EITAA_LINK_TEMPLATE
+        sync: false

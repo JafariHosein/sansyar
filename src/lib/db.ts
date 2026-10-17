@@ -3,6 +3,7 @@ import "server-only";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 
 import { PrismaClient } from "@/generated/prisma/client";
+import { resolveDatabaseUrl } from "@/lib/database-url";
 
 /**
  * The single Prisma client for this process.
@@ -12,19 +13,22 @@ import { PrismaClient } from "@/generated/prisma/client";
  * speaks the MySQL wire protocol, so it serves MySQL 8 and MariaDB alike.
  *
  * The adapter takes either a driver pool config object or a connection URI. We
- * hand it the URI so `DATABASE_URL` stays the one place the database is
- * described — the same value drives the Prisma CLI (`prisma7.config.ts`) and the
- * running app, so they can never point at two different databases.
+ * hand it the URI so one value drives the Prisma CLI (`prisma7.config.ts`) and
+ * the running app, so they can never point at two different databases —
+ * `resolveDatabaseUrl` is where that value comes from: `DATABASE_URL` when set,
+ * otherwise the `MYSQL_*` parts the Render Blueprint injects.
  *
  * Note: pool sizing is driver-side. `PrismaMariadbOptions` has no
  * `connectionLimit` (the Prisma 6 query parameter of the same name is gone too),
  * so the driver's default pool limit applies.
  */
 function createPrismaClient() {
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = resolveDatabaseUrl();
 
   if (!databaseUrl) {
-    throw new Error("DATABASE_URL is not set — copy .env.example to .env and fill it in.");
+    throw new Error(
+      "DATABASE_URL is not set — copy .env.example to .env and fill it in, or provide MYSQL_HOST/MYSQL_USER/MYSQL_PASSWORD/MYSQL_DATABASE (see src/lib/database-url.ts).",
+    );
   }
 
   return new PrismaClient({ adapter: new PrismaMariaDb(databaseUrl) });

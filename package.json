@@ -21,6 +21,7 @@
     "check:race": "tsx scripts/check-registration-race.ts",
     "check:attendance": "tsx scripts/check-attendance.ts",
     "check:balance": "tsx scripts/check-balance.ts",
+    "check:dburl": "tsx scripts/check-database-url.ts",
     "check:env": "node scripts/check-env-escape.mjs",
     "fix:cn-imports": "node scripts/fix-cn-imports.mjs"
   },

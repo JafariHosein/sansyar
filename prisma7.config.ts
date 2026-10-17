@@ -8,6 +8,8 @@ import "dotenv/config";
 
 import { defineConfig } from "prisma/config";
 
+import { resolveDatabaseUrl } from "./src/lib/database-url";
+
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
@@ -15,6 +17,8 @@ export default defineConfig({
     seed: "tsx prisma/seed.ts",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // Shared with the app (`src/lib/db.ts`): `DATABASE_URL` when set, otherwise
+    // composed from the Render Blueprint's `MYSQL_*` variables.
+    url: resolveDatabaseUrl(),
   },
 });
